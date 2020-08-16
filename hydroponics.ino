@@ -1,7 +1,5 @@
 #include <U8g2lib.h>
 #include <stdio.h>
-#include <math.h>
-#include <string.h>
 
 const int ledPin = LED_BUILTIN;
 const int relayPin = 7; // D7
