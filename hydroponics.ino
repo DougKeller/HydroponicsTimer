@@ -27,9 +27,56 @@ void setup() {
   screen.begin();
 }
 
-void setPumpState(int pumpSignal) {
-  digitalWrite(ledPin, pumpSignal);
-  digitalWrite(relayPin, pumpSignal);
+void loop() {
+  switch (currentState) {
+  case STATE_IDLE:
+    printRemaining(stopwatchIcon, "Idle", nextPumpStartTime, fullCycleMilliseconds - fillTimeMilliseconds);
+    handleIdleState();
+    break;
+  case STATE_FILLING:
+    printRemaining(rainingIcon, "Filling", nextPumpStopTime, fillTimeMilliseconds);
+    handleFillingState();
+    break;
+  }
+}
+
+void printRemaining(short icon, char* stateLabel, unsigned long targetTime, unsigned long fullTime) {
+  screen.clearBuffer();
+  screen.setFont(u8g2_font_open_iconic_all_1x_t);
+  screen.drawGlyph(0, 10, icon);
+
+  screen.setFont(u8g2_font_fur11_tf);
+
+  unsigned long currentTime = millis();
+  unsigned long msRemaining = targetTime - currentTime;
+  unsigned int secondsRemaining = ceil(msRemaining / 1000.0);
+
+  screen.drawStr(10, 11, stateLabel);
+
+  char remaining[10];
+  formatRemaining(remaining, secondsRemaining);
+  int offset = 128 - screen.getStrWidth(remaining);
+  screen.drawStr(offset, 11, remaining);
+
+  double percentComplete = (fullTime - msRemaining) * 1.0 / fullTime;
+  unsigned short barLength = percentComplete * 124;
+  screen.drawFrame(0, 16, 128, 16);
+  screen.drawBox(2, 18, barLength, 12);
+  
+  screen.sendBuffer();
+}
+
+void formatRemaining(char* s, unsigned int seconds) {
+  unsigned int hours = seconds / (60 * 60);
+  seconds -= hours * 60 * 60;
+  unsigned int minutes = seconds / 60;
+  seconds -= minutes * 60;
+
+  if (hours > 0) {
+    sprintf(s, "%u:%02u:%02u", hours, minutes, seconds);
+  } else {
+    sprintf(s, "%u:%02u", minutes, seconds);
+  }
 }
 
 void handleIdleState() {
@@ -56,54 +103,7 @@ void handleFillingState() {
   setPumpState(LOW);
 }
 
-void formatRemaining(char* s, unsigned int seconds) {
-  unsigned int hours = seconds / (60 * 60);
-  seconds -= hours * 60 * 60;
-  unsigned int minutes = seconds / 60;
-  seconds -= minutes * 60;
-
-  if (hours > 0) {
-    sprintf(s, "%u:%02u:%02u", hours, minutes, seconds);
-  } else {
-    sprintf(s, "%u:%02u", minutes, seconds);
-  }
-}
-
-void printRemaining(short icon, char* stateLabel, unsigned long targetTime, unsigned long fullTime) {
-  screen.clearBuffer();
-  screen.setFont(u8g2_font_open_iconic_all_1x_t);
-  screen.drawGlyph(0, 10, icon);
-
-  screen.setFont(u8g2_font_fur11_tf);
-
-  unsigned long currentTime = millis();
-  unsigned long msRemaining = targetTime - currentTime;
-  unsigned int secondsRemaining = ceil(msRemaining / 1000.0);
-
-  screen.drawStr(11, 11, stateLabel);
-
-  char remaining[10];
-  formatRemaining(remaining, secondsRemaining);
-  int offset = 128 - screen.getStrWidth(remaining);
-  screen.drawStr(offset, 11, remaining);
-
-  double percentComplete = (fullTime - msRemaining) * 1.0 / fullTime;
-  unsigned short barLength = percentComplete * 124;
-  screen.drawFrame(0, 16, 128, 16);
-  screen.drawBox(2, 18, barLength, 12);
-  
-  screen.sendBuffer();
-}
-
-void loop() {
-  switch (currentState) {
-  case STATE_IDLE:
-    printRemaining(stopwatchIcon, "Idle", nextPumpStartTime, fullCycleMilliseconds - fillTimeMilliseconds);
-    handleIdleState();
-    break;
-  case STATE_FILLING:
-    printRemaining(rainingIcon, "Filling", nextPumpStopTime, fillTimeMilliseconds);
-    handleFillingState();
-    break;
-  }
+void setPumpState(int pumpSignal) {
+  digitalWrite(ledPin, pumpSignal);
+  digitalWrite(relayPin, pumpSignal);
 }
