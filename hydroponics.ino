@@ -12,6 +12,9 @@ const unsigned long FILL_TIME_MS = 45 * 1000lu; // 45 seconds
 
 enum State { STATE_IDLE, STATE_FILLING };
 
+// store time at the start of each loop so that it's the same for the full iteration
+unsigned long currentTime;
+
 unsigned long nextPumpStartTime;
 unsigned long nextPumpStopTime;
 int pumpState;
@@ -24,12 +27,18 @@ void setup() {
 
   screen.begin();
 
+  updateCurrentTime();
   startPump();
 }
 
 void loop() {
+  updateCurrentTime();
   handleState();
   handleDisplay();
+}
+
+void updateCurrentTime() {
+  currentTime = millis();
 }
 
 void handleState() {
@@ -65,7 +74,6 @@ void printRemaining(short icon, char* stateLabel, unsigned long targetTime, unsi
 
   screen.setFont(u8g2_font_fur11_tf);
 
-  unsigned long currentTime = millis();
   unsigned long msRemaining = targetTime - currentTime;
   unsigned int secondsRemaining = ceil(msRemaining / 1000.0);
 
@@ -98,8 +106,6 @@ void formatRemaining(char* s, unsigned int seconds) {
 }
 
 void handleIdleState() {
-  unsigned long currentTime = millis();
-
   bool isTimeToStartPump = currentTime >= nextPumpStartTime;
   if (!isTimeToStartPump) {
     return;
@@ -109,16 +115,12 @@ void handleIdleState() {
 }
 
 void startPump() {
-  unsigned long currentTime = millis();
-
   setPumpState(HIGH);
-  nextPumpStartTime = currentTime + FULL_CYCLE_MS;
+
   nextPumpStopTime = currentTime + FILL_TIME_MS;
 }
 
 void handleFillingState() {
-  unsigned long currentTime = millis();
-
   bool isTimeToStopPump = currentTime >= nextPumpStopTime;
   if (!isTimeToStopPump) {
     return;
@@ -129,6 +131,8 @@ void handleFillingState() {
 
 void stopPump() {
   setPumpState(LOW);
+
+  nextPumpStartTime = currentTime + FULL_CYCLE_MS - FILL_TIME_MS;
 }
 
 void setPumpState(int v) {
