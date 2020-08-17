@@ -28,14 +28,28 @@ void setup() {
 }
 
 void loop() {
+  handleState();
+  handleDisplay();
+}
+
+void handleState() {
   switch (getState()) {
   case STATE_IDLE:
-    printRemaining(ICON_STOPWATCH, "Idle", nextPumpStartTime, FULL_CYCLE_MS - FILL_TIME_MS);
     handleIdleState();
     break;
   case STATE_FILLING:
-    printRemaining(ICON_DROPLET, "Filling", nextPumpStopTime, FILL_TIME_MS);
     handleFillingState();
+    break;
+  }
+}
+
+void handleDisplay() {
+  switch (getState()) {
+  case STATE_IDLE:
+    printRemaining(ICON_STOPWATCH, "Idle", nextPumpStartTime, FULL_CYCLE_MS - FILL_TIME_MS);
+    break;
+  case STATE_FILLING:
+    printRemaining(ICON_DROPLET, "Filling", nextPumpStopTime, FILL_TIME_MS);
     break;
   }
 }
