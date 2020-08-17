@@ -1,43 +1,47 @@
 #include <U8g2lib.h>
 #include <stdio.h>
 
-const int ledPin = LED_BUILTIN;
-const int relayPin = 7; // D7
+const int LED_PIN = LED_BUILTIN;
+const int RELAY_PIN = 7; // D7
 
-const short stopwatchIcon = 0x010d;
-const short rainingIcon = 0x00f1;
+const short ICON_STOPWATCH = 0x010d;
+const short ICON_DROPLET = 0x0098;
 
-unsigned long fullCycleMilliseconds = 2 * 60 * 60 * 1000lu; // 2 hours
-unsigned long fillTimeMilliseconds = 50 * 1000lu; // 50 seconds
-
-unsigned long nextPumpStartTime = 0;
-unsigned long nextPumpStopTime = 0;
+const unsigned long FULL_CYCLE_MS = 3 * 60 * 60 * 1000lu; // 3 hours
+const unsigned long FILL_TIME_MS = 45 * 1000lu; // 45 seconds
 
 enum State { STATE_IDLE, STATE_FILLING };
-enum State currentState;
+
+unsigned long nextPumpStartTime;
+unsigned long nextPumpStopTime;
+int pumpState;
 
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C screen(U8G2_R0);
 
 void setup() {
-  currentState = STATE_IDLE;
-
-  pinMode(ledPin, OUTPUT);
-  pinMode(relayPin, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(RELAY_PIN, OUTPUT);
 
   screen.begin();
+
+  startPump();
 }
 
 void loop() {
-  switch (currentState) {
+  switch (getState()) {
   case STATE_IDLE:
-    printRemaining(stopwatchIcon, "Idle", nextPumpStartTime, fullCycleMilliseconds - fillTimeMilliseconds);
+    printRemaining(ICON_STOPWATCH, "Idle", nextPumpStartTime, FULL_CYCLE_MS - FILL_TIME_MS);
     handleIdleState();
     break;
   case STATE_FILLING:
-    printRemaining(rainingIcon, "Filling", nextPumpStopTime, fillTimeMilliseconds);
+    printRemaining(ICON_DROPLET, "Filling", nextPumpStopTime, FILL_TIME_MS);
     handleFillingState();
     break;
   }
+}
+
+State getState() {
+  return getPumpState() == HIGH ? STATE_FILLING : STATE_IDLE;
 }
 
 void printRemaining(short icon, char* stateLabel, unsigned long targetTime, unsigned long fullTime) {
@@ -81,29 +85,44 @@ void formatRemaining(char* s, unsigned int seconds) {
 
 void handleIdleState() {
   unsigned long currentTime = millis();
+
   bool isTimeToStartPump = currentTime >= nextPumpStartTime;
   if (!isTimeToStartPump) {
     return;
   }
-  
-  currentState = STATE_FILLING;
-  nextPumpStartTime = currentTime + fullCycleMilliseconds;
-  nextPumpStopTime = currentTime + fillTimeMilliseconds;
+
+  startPump();
+}
+
+void startPump() {
+  unsigned long currentTime = millis();
+
   setPumpState(HIGH);
+  nextPumpStartTime = currentTime + FULL_CYCLE_MS;
+  nextPumpStopTime = currentTime + FILL_TIME_MS;
 }
 
 void handleFillingState() {
   unsigned long currentTime = millis();
+
   bool isTimeToStopPump = currentTime >= nextPumpStopTime;
   if (!isTimeToStopPump) {
     return;
   }
-  
-  currentState = STATE_IDLE;
+
+  stopPump();
+}
+
+void stopPump() {
   setPumpState(LOW);
 }
 
-void setPumpState(int pumpSignal) {
-  digitalWrite(ledPin, pumpSignal);
-  digitalWrite(relayPin, pumpSignal);
+void setPumpState(int v) {
+  pumpState = v;
+  digitalWrite(LED_PIN, pumpState);
+  digitalWrite(RELAY_PIN, pumpState);
+}
+
+int getPumpState() {
+  return pumpState;
 }
