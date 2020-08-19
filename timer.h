@@ -9,21 +9,12 @@ class Timer {
   Timer(unsigned long duration) {
     this->duration = duration;
     stop();
-    reset();
   }
 
   void restart() {
-    reset();
-    start();
-  }
-
-  void start() {
-    stopped = false;
-  }
-
-  void reset() {
     elapsed = 0;
     previousTime = millis();
+    stopped = false;
   }
 
   void stop() {
@@ -32,14 +23,6 @@ class Timer {
 
   bool isRunning() {
     return !stopped;
-  }
-
-  bool isComplete() {
-    if (isRunning()) {
-      elapsed += (unsigned long)(millis() - previousTime);  
-    }
-    
-    return elapsed >= duration;
   }
 
   double getPercentComplete() {
@@ -51,6 +34,18 @@ class Timer {
   }
 
   unsigned int getSecondsRemaining() {
+    if (isComplete()) {
+      return 0;
+    }
+    
     return ceil((duration - elapsed) / 1000.0);
+  }
+
+  bool isComplete() {
+    unsigned long currentTime = millis();
+    elapsed += (unsigned long)(currentTime - previousTime);
+    previousTime = currentTime;
+    
+    return elapsed >= duration;
   }
 };

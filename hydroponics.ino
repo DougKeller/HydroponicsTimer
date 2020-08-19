@@ -2,28 +2,27 @@
 #include <U8g2lib.h>
 #include <stdio.h>
 #include "timer.h"
-
-const int LED_PIN = LED_BUILTIN;
-const int RELAY_PIN = 7; // D7
+#include "pump.h"
 
 const short ICON_STOPWATCH = 0x010d;
 const short ICON_DROPLET = 0x0098;
 
-const unsigned long FULL_CYCLE_MS = 2 * 60 * 60 * 1000lu; // 2 hours
-const unsigned long FILL_TIME_MS = 45 * 1000lu; // 45 seconds
-
-Timer fillTimer = Timer(FILL_TIME_MS);
-Timer idleTimer = Timer(FULL_CYCLE_MS - FILL_TIME_MS);
-
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C screen(U8G2_R0);
 const unsigned char SCREEN_WIDTH = 128;
 
+Timer* fillTimer = nullptr;
+Timer* idleTimer = nullptr;
+Pump* pump = nullptr;
+
 void setup() {
-  pinMode(LED_PIN, OUTPUT);
-  pinMode(RELAY_PIN, OUTPUT);
+  unsigned long fullCycleMs = 2 * 60 * 60 * 1000lu; // 2 hours
+  unsigned long fillTimeMs = 45 * 1000lu; // 45 seconds
+
+  fillTimer = new Timer(fillTimeMs);
+  idleTimer = new Timer(fullCycleMs - fillTimeMs);
+  pump = new Pump();
 
   screen.begin();
-
   startPump();
 }
 
@@ -35,35 +34,37 @@ void loop() {
 void checkPump() {
   if (shouldStartPump()) {
     startPump();
+    return;
   }
 
   if (shouldStopPump()) {
     stopPump();
+    return;
   }
 }
 
 bool shouldStartPump() {
-  return idleTimer.isRunning() && idleTimer.isComplete();
+  return idleTimer->isRunning() && idleTimer->isComplete();
 }
 
 void startPump() {
-  setPumpState(HIGH);
-  idleTimer.stop();
-  fillTimer.restart();
+  pump->start();
+  idleTimer->stop();
+  fillTimer->restart();
 };
 
 bool shouldStopPump() {
-  return fillTimer.isRunning() && fillTimer.isComplete();
+  return fillTimer->isRunning() && fillTimer->isComplete();
 }
 
 void stopPump() {
-  setPumpState(LOW);
-  fillTimer.stop();
-  idleTimer.restart();
+  pump->stop();
+  fillTimer->stop();
+  idleTimer->restart();
 }
 
 void updateScreen() {
-  if (fillTimer.isRunning()) {
+  if (fillTimer->isRunning()) {
     printRemaining(ICON_DROPLET, "Filling", fillTimer);
     return;
   }
@@ -71,7 +72,7 @@ void updateScreen() {
   printRemaining(ICON_STOPWATCH, "Idle", idleTimer);
 }
 
-void printRemaining(short icon, char* stateLabel, Timer& timer) {
+void printRemaining(short icon, char* stateLabel, Timer* timer) {
   screen.clearBuffer();
 
   screen.setFont(u8g2_font_open_iconic_all_1x_t);
@@ -81,11 +82,11 @@ void printRemaining(short icon, char* stateLabel, Timer& timer) {
   screen.drawStr(10, 11, stateLabel);
 
   char formattedRemaining[10];
-  formatRemaining(formattedRemaining, timer.getSecondsRemaining());
+  formatRemaining(formattedRemaining, timer->getSecondsRemaining());
   int offset = SCREEN_WIDTH - screen.getStrWidth(formattedRemaining);
   screen.drawStr(offset, 11, formattedRemaining);
 
-  unsigned short barLength = timer.getPercentComplete() * (SCREEN_WIDTH - 4);
+  unsigned short barLength = timer->getPercentComplete() * (SCREEN_WIDTH - 4);
   screen.drawFrame(0, 16, SCREEN_WIDTH, 16);
   screen.drawBox(2, 18, barLength, 12);
   
@@ -103,9 +104,4 @@ void formatRemaining(char* s, unsigned int seconds) {
   } else {
     sprintf(s, "%u:%02u", minutes, seconds);
   }
-}
-
-void setPumpState(int v) {
-  digitalWrite(LED_PIN, v);
-  digitalWrite(RELAY_PIN, v);
 }
