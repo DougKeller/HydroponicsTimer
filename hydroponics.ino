@@ -1,4 +1,3 @@
-
 #include <U8g2lib.h>
 #include <stdio.h>
 #include "timer.h"
@@ -6,6 +5,7 @@
 
 const short ICON_STOPWATCH = 0x010d;
 const short ICON_DROPLET = 0x0098;
+const short ICON_ERROR = 0x011b;
 
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C screen(U8G2_R0);
 const unsigned char SCREEN_WIDTH = 128;
@@ -13,6 +13,7 @@ const unsigned char SCREEN_WIDTH = 128;
 Timer* fillTimer = nullptr;
 Timer* idleTimer = nullptr;
 Pump* pump = nullptr;
+bool renderError = false;
 
 void setup() {
   unsigned long fullCycleMs = 2 * 60 * 60 * 1000lu; // 2 hours
@@ -64,23 +65,64 @@ void stopPump() {
 }
 
 void updateScreen() {
+  if (getErrorCode()) {
+    drawError(getErrorCode()); 
+    return;
+  }
+  
   if (fillTimer->isRunning()) {
-    printRemaining(ICON_DROPLET, "Filling", fillTimer);
+    drawState(ICON_DROPLET, "Filling", fillTimer);
     return;
   }
 
-  printRemaining(ICON_STOPWATCH, "Idle", idleTimer);
+  if (idleTimer->isRunning()) {
+    drawState(ICON_STOPWATCH, "Idle", idleTimer);  
+    return;
+  }
 }
 
-void printRemaining(short icon, char* stateLabel, Timer* timer) {
+int getErrorCode() {
+  if (renderError) {
+    return 1;
+  }
+
+  if (!idleTimer->isRunning() && !fillTimer->isRunning()) {
+    return 2;
+  }
+
+  return 0;
+}
+
+void drawError(int errorCode) {
   screen.clearBuffer();
 
+  char message[10];
+  sprintf(message, "Error: %d", errorCode);
+  drawStatus(ICON_ERROR, message);
+  
+  screen.sendBuffer();
+}
+
+void drawState(short icon, String stateLabel, Timer* timer) {
+  renderError = true;
+  screen.clearBuffer();
+
+  drawStatus(icon, stateLabel);
+  drawProgress(timer);
+  
+  screen.sendBuffer();
+  renderError = false;
+}
+
+void drawStatus(short icon, String label) {
   screen.setFont(u8g2_font_open_iconic_all_1x_t);
   screen.drawGlyph(0, 10, icon);
 
   screen.setFont(u8g2_font_fur11_tf);
-  screen.drawStr(10, 11, stateLabel);
+  screen.drawStr(10, 11, label.c_str());
+}
 
+void drawProgress(Timer* timer) {
   char formattedRemaining[10];
   formatRemaining(formattedRemaining, timer->getSecondsRemaining());
   int offset = SCREEN_WIDTH - screen.getStrWidth(formattedRemaining);
@@ -88,9 +130,7 @@ void printRemaining(short icon, char* stateLabel, Timer* timer) {
 
   unsigned short barLength = timer->getPercentComplete() * (SCREEN_WIDTH - 4);
   screen.drawFrame(0, 16, SCREEN_WIDTH, 16);
-  screen.drawBox(2, 18, barLength, 12);
-  
-  screen.sendBuffer();
+  screen.drawBox(2, 18, barLength, 12);  
 }
 
 void formatRemaining(char* s, unsigned int seconds) {

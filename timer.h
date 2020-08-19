@@ -38,7 +38,7 @@ class Timer {
       return 0;
     }
     
-    return ceil((duration - elapsed) / 1000.0);
+    return (unsigned int) ceil((duration - elapsed) / 1000.0);
   }
 
   bool isComplete() {
