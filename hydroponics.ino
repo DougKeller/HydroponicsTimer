@@ -13,11 +13,10 @@ const unsigned char SCREEN_WIDTH = 128;
 Timer* fillTimer = nullptr;
 Timer* idleTimer = nullptr;
 Pump* pump = nullptr;
-bool renderError = false;
 
 void setup() {
-  unsigned long fullCycleMs = 2 * 60 * 60 * 1000lu; // 2 hours
-  unsigned long fillTimeMs = 45 * 1000lu; // 45 seconds
+  unsigned long fullCycleMs = 4 * 60 * 60 * 1000lu; // 4 hours
+  unsigned long fillTimeMs = 40 * 1000lu; // 40 seconds
 
   fillTimer = new Timer(fillTimeMs);
   idleTimer = new Timer(fullCycleMs - fillTimeMs);
@@ -65,11 +64,6 @@ void stopPump() {
 }
 
 void updateScreen() {
-  if (getErrorCode()) {
-    drawError(getErrorCode()); 
-    return;
-  }
-  
   if (fillTimer->isRunning()) {
     drawState(ICON_DROPLET, "Filling", fillTimer);
     return;
@@ -81,37 +75,13 @@ void updateScreen() {
   }
 }
 
-int getErrorCode() {
-  if (renderError) {
-    return 1;
-  }
-
-  if (!idleTimer->isRunning() && !fillTimer->isRunning()) {
-    return 2;
-  }
-
-  return 0;
-}
-
-void drawError(int errorCode) {
-  screen.clearBuffer();
-
-  char message[10];
-  sprintf(message, "Error: %d", errorCode);
-  drawStatus(ICON_ERROR, message);
-  
-  screen.sendBuffer();
-}
-
 void drawState(short icon, String stateLabel, Timer* timer) {
-  renderError = true;
   screen.clearBuffer();
 
   drawStatus(icon, stateLabel);
   drawProgress(timer);
   
   screen.sendBuffer();
-  renderError = false;
 }
 
 void drawStatus(short icon, String label) {
